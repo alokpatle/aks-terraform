@@ -1,0 +1,43 @@
+name: Deploy to EKS
+
+on:
+  push:
+    branches:
+      - min
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1 # Replace with your AWS region
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push Docker image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: hello-world-app
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+      - name: Update Kubernetes image in manifests (if needed)
+        run: |
+          sed -i "s|your-image-placeholder|${{ steps.login-ecr.outputs.registry }}/hello-world-app:${{ github.sha }}|g" k8s/deployment.yaml
+
+      - name: Deploy to EKS
+        uses: yourmaintainer/kubectl-action@v1 # Example action for kubectl
+        with:
+          kubeconfig: ${{ secrets.KUBECONFIG }} # Or configure directly if using IAM roles for service accounts
+          command: apply -f k8s/deployment.yaml -f k8s/service.yaml

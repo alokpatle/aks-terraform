@@ -6,7 +6,7 @@ provider "aws" {
 data "aws_availability_zones" "available" {}
 
 locals {
-  cluster_name = "abhi-eks-${random_string.suffix.result}"
+  cluster_name = "demo-eks-${random_string.suffix.result}"
 }
 
 resource "random_string" "suffix" {
@@ -16,9 +16,9 @@ resource "random_string" "suffix" {
 
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
-  version = "5.7.0"
+  version = "6.0.1"
 
-  name                 = "abhi-eks-vpc"
+  name                 = "demo-eks-vpc"
   cidr                 = var.vpc_cidr
   azs                  = data.aws_availability_zones.available.names
   private_subnets      = ["10.0.1.0/24", "10.0.2.0/24"]
@@ -27,6 +27,7 @@ module "vpc" {
   single_nat_gateway   = true
   enable_dns_hostnames = true
   enable_dns_support   = true
+  enable_vpn_gateway   = true
 
   tags = {
     "kubernetes.io/cluster/${local.cluster_name}" = "shared"
